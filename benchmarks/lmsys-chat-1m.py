@@ -1,3 +1,4 @@
+import argparse
 import time
 import sglang as sgl
 from datasets import load_dataset
@@ -5,20 +6,45 @@ import pandas as pd
 import numpy as np
 from sglang.utils import terminate_process
 
-# ================= 配置区域 =================
-# 模型路径 (请替换为您本地的模型路径或 HuggingFace ID)
-MODEL_PATH = "/HOME/nju_mli/nju_mli_1/HDD_POOL/dpskv2"
-DATASET_PATH = "/HOME/nju_mli/nju_mli_1/junjie/RadixRetro/datasets/LMSYS-Chat-1M"
 
-# 采样对话数量 (为了快速测试，默认只跑前 10 个对话)
-NUM_SAMPLES = 10
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run LMSYS-Chat-1M benchmark with SGLang.")
+    parser.add_argument(
+        "--model-path",
+        default="/HOME/nju_mli/nju_mli_1/HDD_POOL/dpskv2",
+        help="Model path or HuggingFace ID.",
+    )
+    parser.add_argument(
+        "--dataset-path",
+        default="/HOME/nju_mli/nju_mli_1/junjie/RadixRetro/datasets/LMSYS-Chat-1M",
+        help="Local dataset path or HF dataset name.",
+    )
+    parser.add_argument(
+        "--num-samples",
+        type=int,
+        default=10,
+        help="Number of conversations to sample.",
+    )
+    parser.add_argument(
+        "--disable-radix",
+        action="store_true",
+        help="Disable RadixCache for comparison.",
+    )
+    parser.add_argument(
+        "--trace-path",
+        default="tree_node_trace.json",
+        help="Path to dump RadixTree trace JSONL.",
+    )
+    parser.add_argument(
+        "--mem-fraction-static",
+        type=float,
+        default=0.8,
+        help="KV cache memory fraction for SGLang Runtime.",
+    )
+    return parser.parse_args()
 
-# 是否禁用 RadixCache (设置为 True 可以对比性能差异)
-DISABLE_RADIX = False
-# ===========================================
 
-
-def load_lmsys_data(num_samples=50):
+def load_lmsys_data(num_samples=50, dataset_path=None):
     """
     加载 LMSYS-Chat-1M 数据集并进行预处理。
     由于数据集较大，我们使用流式加载或只取前几条。
@@ -26,7 +52,7 @@ def load_lmsys_data(num_samples=50):
     print(f"正在加载 LMSYS-Chat-1M 数据集 (前 {num_samples} 条)...")
     try:
         # 使用流式加载以节省内存
-        dataset = load_dataset(DATASET_PATH, split="train", streaming=True)
+        dataset = load_dataset(dataset_path, split="train", streaming=True)
         data_iter = iter(dataset)
 
         conversations = []
@@ -66,21 +92,25 @@ def chat_inference(s, history_prompt):
 
 
 def main():
+    args = parse_args()
+
     # 1. 初始化 SGLang Runtime (离线模式)
     print(
-        f"正在初始化 SGLang Runtime (RadixCache={'Disabled' if DISABLE_RADIX else 'Enabled'})..."
+        f"正在初始化 SGLang Runtime (RadixCache={'Disabled' if args.disable_radix else 'Enabled'})..."
     )
 
     # mem_fraction_static 是 KV Cache 的显存占比，调大可以缓存更多历史
     runtime = sgl.Runtime(
-        model_path=MODEL_PATH,
-        disable_radix_cache=DISABLE_RADIX,
-        mem_fraction_static=0.8,
+        model_path=args.model_path,
+        disable_radix_cache=args.disable_radix,
+        mem_fraction_static=args.mem_fraction_static,
     )
     sgl.set_default_backend(runtime)
 
     # 2. 准备数据
-    conversations = load_lmsys_data(NUM_SAMPLES)
+    conversations = load_lmsys_data(
+        num_samples=args.num_samples, dataset_path=args.dataset_path
+    )
 
     total_latency = 0
     total_turns = 0
@@ -125,18 +155,18 @@ def main():
     # 4. 统计结果
     trace_meta = {
         "benchmark": "lmsys-chat-1m",
-        "num_samples": NUM_SAMPLES,
+        "num_samples": args.num_samples,
         "total_turns": total_turns,
     }
     try:
         dump_resp = runtime.dump_radix_tree(
-            path="tree_node_trace.json",
+            path=args.trace_path,
             meta=trace_meta,
         )
         trace_path = (
             dump_resp["path"]
             if isinstance(dump_resp, dict) and "path" in dump_resp
-            else "tree_node_trace.json"
+            else args.trace_path
         )
         print(f"RadixTree trace dumped to {trace_path}")
     except Exception as e:
@@ -147,7 +177,7 @@ def main():
     print(f"平均每轮延迟: {np.mean(latencies):.4f} s")
     print(f"P99 延迟: {np.percentile(latencies, 99):.4f} s")
 
-    if not DISABLE_RADIX:
+    if not args.disable_radix:
         print("\n[分析] 如果 RadixCache 生效，你会发现随着 Input Len 变长，")
         print("       延迟并没有线性大幅增加，因为前缀部分（History）被跳过了计算。")
 
