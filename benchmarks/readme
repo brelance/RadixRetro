@@ -1,0 +1,35 @@
+@lmsys-chat-1m
+## 如何运行
+
+保存文件后，你可以使用以下命令灵活控制：
+
+**1. 默认运行 (10 条)**
+
+```bash
+python benchmark_lmsys.py
+```
+
+**2. 运行 100 条数据**
+
+```bash
+python benchmark_lmsys.py --samples 100
+```
+
+**3. 运行 1 条数据 (快速调试)**
+
+```bash
+python benchmark_lmsys.py --samples 1
+```
+
+**4. 运行全部数据 (注意耗时)**
+
+```bash
+python benchmark_lmsys.py --samples -1
+```
+
+**5. 对比测试：禁用 RadixCache 跑 50 条**
+
+```bash
+python benchmark_lmsys.py --samples 50 --disable-radix
+```
+

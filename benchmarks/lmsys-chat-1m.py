@@ -18,7 +18,7 @@ DISABLE_RADIX = False
 # ===========================================
 
 
-def load_lmsys_data(num_samples=10):
+def load_lmsys_data(num_samples=50):
     """
     加载 LMSYS-Chat-1M 数据集并进行预处理。
     由于数据集较大，我们使用流式加载或只取前几条。
