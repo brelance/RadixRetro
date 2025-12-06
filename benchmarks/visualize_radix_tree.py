@@ -14,10 +14,25 @@ except ImportError as exc:  # pragma: no cover - optional dependency
 
 def _load_snapshot(path: str, index: int):
     with open(path, "r", encoding="utf-8") as f:
-        lines = [ln.strip() for ln in f if ln.strip()]
-    if not lines:
+        content = f.read().strip()
+
+    if not content:
         raise ValueError(f"No snapshots found in {path}")
 
+    # Try to parse the whole file as a single JSON object or array.
+    try:
+        parsed = json.loads(content)
+        if isinstance(parsed, dict):
+            return parsed
+        if isinstance(parsed, list) and parsed:
+            idx = index if index >= 0 else len(parsed) + index
+            idx = max(0, min(idx, len(parsed) - 1))
+            return parsed[idx]
+    except json.JSONDecodeError:
+        pass  # fall back to JSONL parsing
+
+    # Fallback: treat as JSONL, one snapshot per line.
+    lines = [ln.strip() for ln in content.splitlines() if ln.strip()]
     idx = index if index >= 0 else len(lines) + index
     idx = max(0, min(idx, len(lines) - 1))
     return json.loads(lines[idx])
@@ -61,21 +76,25 @@ def _compute_positions(
     return positions
 
 
-def _format_label(node: Dict) -> str:
-    tokens = node.get("tokens", [])
+def _format_label(node: Dict, show_tokens: bool) -> str:
     extra = node.get("extra_key")
+    prefix = f"{node.get('node_id')}"
+    if extra:
+        prefix += f" | {extra}"
+
+    if not show_tokens:
+        return prefix
+
+    tokens = node.get("tokens", [])
     token_preview = (
         str(tokens[:4]) + ("..." if len(tokens) > 4 else "")
         if isinstance(tokens, list)
         else str(tokens)
     )
-    prefix = f"{node.get('node_id')}"
-    if extra:
-        prefix += f" | {extra}"
     return f"{prefix}\n{token_preview}"
 
 
-def visualize(snapshot: Dict, output_path: str):
+def visualize(snapshot: Dict, output_path: str, show_tokens: bool):
     nodes = {n["node_id"]: n for n in snapshot.get("nodes", [])}
     edges = snapshot.get("edges", [])
     positions = _compute_positions(nodes, edges)
@@ -97,7 +116,7 @@ def visualize(snapshot: Dict, output_path: str):
         plt.text(
             x,
             y + 0.05,
-            _format_label(node),
+            _format_label(node, show_tokens=show_tokens),
             ha="center",
             va="bottom",
             fontsize=8,
@@ -130,10 +149,15 @@ def main():
         default="radix_tree.png",
         help="Output image path",
     )
+    parser.add_argument(
+        "--show-tokens",
+        action="store_true",
+        help="Include token previews in node labels (off by default to keep charts clean)",
+    )
     args = parser.parse_args()
 
     snapshot = _load_snapshot(args.trace, args.index)
-    visualize(snapshot, args.output)
+    visualize(snapshot, args.output, show_tokens=args.show_tokens)
 
 
 if __name__ == "__main__":
