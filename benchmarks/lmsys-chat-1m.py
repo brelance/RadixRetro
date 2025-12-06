@@ -7,7 +7,8 @@ from sglang.utils import terminate_process
 
 # ================= 配置区域 =================
 # 模型路径 (请替换为您本地的模型路径或 HuggingFace ID)
-MODEL_PATH = "meta-llama/Meta-Llama-3-8B-Instruct"
+MODEL_PATH = "/HOME/nju_mli/nju_mli_1/HDD_POOL/dpskv2"
+DATASET_PATH = "/HOME/nju_mli/nju_mli_1/junjie/RadixRetro/datasets/LMSYS-Chat-1M"
 
 # 采样对话数量 (为了快速测试，默认只跑前 10 个对话)
 NUM_SAMPLES = 10
@@ -25,7 +26,7 @@ def load_lmsys_data(num_samples=10):
     print(f"正在加载 LMSYS-Chat-1M 数据集 (前 {num_samples} 条)...")
     try:
         # 使用流式加载以节省内存
-        dataset = load_dataset("lmsys/lmsys-chat-1m", split="train", streaming=True)
+        dataset = load_dataset(DATASET_PATH, split="train", streaming=True)
         data_iter = iter(dataset)
 
         conversations = []

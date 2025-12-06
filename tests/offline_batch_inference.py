@@ -11,6 +11,7 @@ from sglang.srt.server_args import ServerArgs
 
 model = "/HOME/nju_mli/nju_mli_1/HDD_POOL/dpskv2"
 
+
 def main(
     server_args: ServerArgs,
 ):
@@ -37,8 +38,8 @@ def main(
 # The __main__ condition is necessary here because we use "spawn" to create subprocesses
 # Spawn starts a fresh program every time, if there is no __main__, it will run into infinite loop to keep spawning processes from sgl.Engine
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    ServerArgs.add_cli_args(parser)
-    args = parser.parse_args()
-    server_args = ServerArgs.from_cli_args(args)
+    # parser = argparse.ArgumentParser()
+    # ServerArgs.add_cli_args(parser)
+    # args = parser.parse_args()
+    server_args = ServerArgs(model_path=model, enable_hierarchical_cache=True)
     main(server_args)
