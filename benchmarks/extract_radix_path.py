@@ -1,7 +1,7 @@
 import argparse
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple, Any
+from typing import Any, Dict, List
 
 
 def _load_snapshot(path: str, index: int):
@@ -90,6 +90,35 @@ def extract_tokens(snapshot: Dict, path_ids: List[int], mode: str, show_extra: b
     return details
 
 
+def flatten_for_detokenize(tokens: List[Any]) -> List[int]:
+    """Convert stored tokens (ints or tuples) into a linear token id sequence."""
+    if not tokens:
+        return []
+    first = tokens[0]
+    if isinstance(first, (tuple, list)):
+        flat: List[int] = []
+        for chunk in tokens:
+            chunk_vals = list(chunk)
+            if not chunk_vals:
+                continue
+            if not flat:
+                flat.extend(int(x) for x in chunk_vals)
+            else:
+                flat.extend(int(x) for x in chunk_vals[1:])
+        return flat
+    return [int(tok) for tok in tokens]
+
+
+def detokenize_sequence(tokenizer, token_ids: List[int], skip_special_tokens: bool, clean_up_spaces: bool):
+    if not token_ids:
+        return ""
+    return tokenizer.decode(
+        token_ids,
+        skip_special_tokens=skip_special_tokens,
+        clean_up_tokenization_spaces=clean_up_spaces,
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Extract token sequences for a path in tree_node_trace.json"
@@ -121,6 +150,46 @@ def main():
         action="store_true",
         help="Show extra node metadata when using per-node mode",
     )
+    parser.add_argument(
+        "--tokenizer-path",
+        help="Path/name of HuggingFace tokenizer for detokenization",
+    )
+    parser.add_argument(
+        "--trust-remote-code",
+        action="store_true",
+        help="Trust remote code when loading tokenizer",
+    )
+    parser.add_argument(
+        "--revision",
+        help="Specific revision of tokenizer to load",
+    )
+    parser.add_argument(
+        "--print-detokenized",
+        action="store_true",
+        help="Print detokenized text (requires --tokenizer-path)",
+    )
+    parser.add_argument(
+        "--detokenize-mode",
+        choices=["auto", "raw"],
+        default="auto",
+        help="auto: reconstruct from tuples/bigrams; raw: treat tokens as-is",
+    )
+    parser.add_argument(
+        "--skip-special-tokens",
+        action="store_true",
+        help="Skip special tokens during detokenization",
+    )
+    parser.add_argument(
+        "--clean-up-spaces",
+        action="store_true",
+        help="Clean up tokenization spaces during detokenization",
+    )
+    parser.add_argument(
+        "--max-detokenize-length",
+        type=int,
+        default=0,
+        help="Limit number of tokens when detokenizing (0 = no limit)",
+    )
     args = parser.parse_args()
 
     trace_path = Path(args.trace)
@@ -137,10 +206,48 @@ def main():
     print(f"Snapshot index: {args.index}")
     print(f"Path: {node_path}")
 
+    tokenizer = None
+    if args.print_detokenized:
+        if not args.tokenizer_path:
+            raise ValueError("Please specify --tokenizer-path when using --print-detokenized")
+        try:
+            from transformers import AutoTokenizer
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError(
+                "transformers is required for detokenization. Please install it via pip."
+            ) from exc
+
+        tokenizer = AutoTokenizer.from_pretrained(
+            args.tokenizer_path,
+            trust_remote_code=args.trust_remote_code,
+            revision=args.revision,
+        )
+
+    def prepare_for_detok(tokens: List[Any]) -> List[int]:
+        if args.detokenize_mode == "auto":
+            return flatten_for_detokenize(tokens)
+        return [int(tok) for tok in tokens if isinstance(tok, (int, float))]
+
+    def maybe_clip(ids: List[int]) -> List[int]:
+        if args.max_detokenize_length and args.max_detokenize_length > 0:
+            return ids[: args.max_detokenize_length]
+        return ids
+
     if args.output_mode == "concat":
         print("Concatenated tokens:")
         print(result)
         print(f"Total tokens: {len(result)}")
+        if tokenizer is not None:
+            token_ids = maybe_clip(prepare_for_detok(result))
+            text = detokenize_sequence(
+                tokenizer,
+                token_ids,
+                skip_special_tokens=args.skip_special_tokens,
+                clean_up_spaces=args.clean_up_spaces,
+            )
+            print("Detokenized text:\n---")
+            print(text)
+            print("---")
     else:
         for entry in result:
             print(f"Node {entry['node_id']}:")
@@ -152,6 +259,16 @@ def main():
                 print(
                     f"  key_len: {entry.get('key_len')} | value_len: {entry.get('value_len')} | lock_ref: {entry.get('lock_ref')}"
                 )
+            if tokenizer is not None:
+                token_ids = maybe_clip(prepare_for_detok(entry["tokens"]))
+                text = detokenize_sequence(
+                    tokenizer,
+                    token_ids,
+                    skip_special_tokens=args.skip_special_tokens,
+                    clean_up_spaces=args.clean_up_spaces,
+                )
+                print("  detokenized:")
+                print(f"    {text}")
 
 
 if __name__ == "__main__":
