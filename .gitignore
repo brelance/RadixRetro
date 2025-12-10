@@ -2,3 +2,7 @@
 .vscode
 datasets
 *.png
+*.json
+/backup
+.donwload_models
+traces
