@@ -53,6 +53,7 @@ def collect_multi_child_nodes(nodes: List[Dict[str, Any]]) -> Dict[str, Any]:
             multi_child_nodes.append(
                 {
                     "node_id": node.get("node_id"),
+                    "hit_count": node.get("hit_count"),
                     "tokens_length": token_len,
                     "children_count": children_count,
                 }
