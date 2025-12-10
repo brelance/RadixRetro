@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""Utility script to summarize radix tree node snapshots."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Any, Dict, List
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Analyze a tree_node_trace.json snapshot and summarize "
+            "overall node statistics."
+        )
+    )
+    parser.add_argument(
+        "--input",
+        type=Path,
+        default=Path("tree_node_trace.json"),
+        help="Path to the tree_node_trace.json file.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("benchmarks/radix_tree_multi_child_nodes.json"),
+        help="Where to write the multi-child node information JSON.",
+    )
+    return parser.parse_args()
+
+
+def load_nodes(tree_trace_path: Path) -> List[Dict[str, Any]]:
+    with tree_trace_path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    nodes = data.get("nodes")
+    if nodes is None:
+        raise ValueError(f"'nodes' entry missing in {tree_trace_path}")
+    return nodes
+
+
+def collect_multi_child_nodes(nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    multi_child_nodes: List[Dict[str, Any]] = []
+    for node in nodes:
+        children_count = int(node.get("children_count") or 0)
+        tokens = node.get("tokens") or []
+        if children_count > 1:
+            multi_child_nodes.append(
+                {
+                    "node_id": node.get("node_id"),
+                    "tokens_length": len(tokens),
+                    "children_count": children_count,
+                }
+            )
+    return multi_child_nodes
+
+
+def main() -> None:
+    args = parse_args()
+    nodes = load_nodes(args.input)
+    total_nodes = len(nodes)
+    multi_child_nodes = collect_multi_child_nodes(nodes)
+
+    payload = {
+        "source": str(args.input),
+        "total_nodes": total_nodes,
+        "multi_child_nodes_count": len(multi_child_nodes),
+        "multi_child_nodes": multi_child_nodes,
+    }
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    print(
+        f"Total nodes: {total_nodes}. "
+        f"Nodes with >1 child: {len(multi_child_nodes)}. "
+        f"Details saved to {args.output}."
+    )
+
+
+if __name__ == "__main__":
+    main()
