@@ -41,5 +41,7 @@ if __name__ == "__main__":
     # parser = argparse.ArgumentParser()
     # ServerArgs.add_cli_args(parser)
     # args = parser.parse_args()
-    server_args = ServerArgs(model_path=model, enable_hierarchical_cache=True)
+    server_args = ServerArgs(
+        model_path=model, enable_hierarchical_cache=False, disable_overlap_schedule=True
+    )
     main(server_args)
