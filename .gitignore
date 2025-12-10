@@ -4,3 +4,7 @@ datasets
 *.png
 implements_docs
 prompt
+*.json
+/backup
+.donwload_models
+traces
