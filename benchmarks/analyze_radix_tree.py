@@ -28,6 +28,12 @@ def parse_args() -> argparse.Namespace:
         default=Path("benchmarks/radix_tree_multi_child_nodes.json"),
         help="Where to write the multi-child node information JSON.",
     )
+    parser.add_argument(
+        "--hits-output",
+        type=Path,
+        default=Path("benchmarks/radix_tree_nodes_by_hit.json"),
+        help="Where to write nodes sorted by hit_count in descending order.",
+    )
     return parser.parse_args()
 
 
@@ -66,6 +72,25 @@ def collect_multi_child_nodes(nodes: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def dump_nodes_sorted_by_hit(nodes: List[Dict[str, Any]], output_path: Path) -> None:
+    sorted_nodes: List[Dict[str, Any]] = []
+    for node in nodes:
+        tokens = node.get("tokens") or []
+        hit_count = node.get("hit_count")
+        hit_value = int(hit_count or 0)
+        sorted_nodes.append(
+            {
+                "node_id": node.get("node_id"),
+                "tokens": tokens,
+                "hit_count": hit_value,
+                "tokens_length": len(tokens),
+            }
+        )
+    sorted_nodes.sort(key=lambda item: item["hit_count"], reverse=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(sorted_nodes, indent=2), encoding="utf-8")
+
+
 def main() -> None:
     args = parse_args()
     nodes = load_nodes(args.input)
@@ -83,6 +108,7 @@ def main() -> None:
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    dump_nodes_sorted_by_hit(nodes, args.hits_output)
 
     print(
         f"Total nodes: {total_nodes}. "
