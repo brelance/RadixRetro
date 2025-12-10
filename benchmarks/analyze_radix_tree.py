@@ -40,33 +40,44 @@ def load_nodes(tree_trace_path: Path) -> List[Dict[str, Any]]:
     return nodes
 
 
-def collect_multi_child_nodes(nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def collect_multi_child_nodes(nodes: List[Dict[str, Any]]) -> Dict[str, Any]:
     multi_child_nodes: List[Dict[str, Any]] = []
+    total_tokens_length = 0
+    multi_child_tokens_length = 0
     for node in nodes:
         children_count = int(node.get("children_count") or 0)
         tokens = node.get("tokens") or []
+        token_len = len(tokens)
+        total_tokens_length += token_len
         if children_count > 1:
             multi_child_nodes.append(
                 {
                     "node_id": node.get("node_id"),
-                    "tokens_length": len(tokens),
+                    "tokens_length": token_len,
                     "children_count": children_count,
                 }
             )
-    return multi_child_nodes
+            multi_child_tokens_length += token_len
+    return {
+        "multi_child_nodes": multi_child_nodes,
+        "total_tokens_length": total_tokens_length,
+        "multi_child_tokens_length": multi_child_tokens_length,
+    }
 
 
 def main() -> None:
     args = parse_args()
     nodes = load_nodes(args.input)
     total_nodes = len(nodes)
-    multi_child_nodes = collect_multi_child_nodes(nodes)
+    stats = collect_multi_child_nodes(nodes)
 
     payload = {
         "source": str(args.input),
         "total_nodes": total_nodes,
-        "multi_child_nodes_count": len(multi_child_nodes),
-        "multi_child_nodes": multi_child_nodes,
+        "total_tokens_length": stats["total_tokens_length"],
+        "multi_child_nodes_count": len(stats["multi_child_nodes"]),
+        "multi_child_tokens_length": stats["multi_child_tokens_length"],
+        "multi_child_nodes": stats["multi_child_nodes"],
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -74,7 +85,7 @@ def main() -> None:
 
     print(
         f"Total nodes: {total_nodes}. "
-        f"Nodes with >1 child: {len(multi_child_nodes)}. "
+        f"Nodes with >1 child: {len(stats['multi_child_nodes'])}. "
         f"Details saved to {args.output}."
     )
 
