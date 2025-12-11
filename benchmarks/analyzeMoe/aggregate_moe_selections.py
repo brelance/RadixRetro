@@ -85,7 +85,7 @@ def parse_line(
 
 
 def aggregate_by_layer(
-    records: Iterable[Tuple[int, List[int], List[int]]]
+    records: Iterable[Tuple[int, List[int], List[int]]],
 ) -> Tuple[Dict[int, Dict[int, int]], Dict[int, int]]:
     layer_expert_counts: DefaultDict[int, DefaultDict[int, int]] = defaultdict(
         lambda: defaultdict(int)
@@ -147,18 +147,28 @@ def render_text_tables(layers: List[Dict[str, object]]) -> str:
     for layer_entry in layers:
         experts = layer_entry["experts"]
         counts = layer_entry["counts"]
-        expert_width = max(len("expert"), max(len(str(e)) for e in experts)) if experts else len("expert")
-        count_width = max(len("count"), max(len(str(c)) for c in counts)) if counts else len("count")
+        expert_width = (
+            max(len("expert"), max(len(str(e)) for e in experts))
+            if experts
+            else len("expert")
+        )
+        count_width = (
+            max(len("count"), max(len(str(c)) for c in counts))
+            if counts
+            else len("count")
+        )
 
         lines.append(
             f"Layer {layer_entry['layer']} "
             f"(requests: {layer_entry['request_count']}, total_count: {layer_entry['total_count']})"
         )
         lines.append(f"{'expert'.ljust(expert_width)} | {'count'.ljust(count_width)}")
-        lines.append(f"{'-'*expert_width}-+-{'-'*count_width}")
+        lines.append(f"{'-' * expert_width}-+-{'-' * count_width}")
 
         for expert, count in zip(experts, counts):
-            lines.append(f"{str(expert).ljust(expert_width)} | {str(count).ljust(count_width)}")
+            lines.append(
+                f"{str(expert).ljust(expert_width)} | {str(count).ljust(count_width)}"
+            )
         lines.append("")  # blank line between layers for readability
 
     return "\n".join(lines).rstrip() + "\n"
