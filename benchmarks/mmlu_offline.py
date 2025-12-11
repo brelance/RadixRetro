@@ -31,9 +31,7 @@ def _pick_subjects(data_dir: str, subjects_arg: str | None) -> list[str]:
     if subjects_arg:
         return [_normalize_subject(s) for s in subjects_arg.split(",") if s.strip()]
     return sorted(
-        f.split("_test.csv")[0]
-        for f in os.listdir(test_dir)
-        if f.endswith("_test.csv")
+        f.split("_test.csv")[0] for f in os.listdir(test_dir) if f.endswith("_test.csv")
     )
 
 
@@ -121,7 +119,7 @@ def main(args: argparse.Namespace):
     pt = 0
     for subject, num_qs in zip(subjects, num_questions):
         print(
-            f"subject: {subject}, #q:{num_qs}, acc: {np.mean(cors[pt: pt + num_qs]):.3f}"
+            f"subject: {subject}, #q:{num_qs}, acc: {np.mean(cors[pt : pt + num_qs]):.3f}"
         )
         pt += num_qs
 

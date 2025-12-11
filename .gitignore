@@ -8,3 +8,4 @@ prompt
 /backup
 .donwload_models
 traces
+*.jsonl
