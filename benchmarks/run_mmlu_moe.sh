@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Paths and knobs (override via env if needed)
 DATA_DIR="${DATA_DIR:-"${SCRIPT_DIR}/../datasets/MMLU"}"
 LOG_ROOT="${LOG_ROOT:-"${SCRIPT_DIR}/../traces/radix_moe/mmlu"}"
-AGG_ROOT="${AGG_ROOT:-"${SCRIPT_DIR}/analyzeMoe/mmlu"}"
+AGG_ROOT="${AGG_ROOT:-"${SCRIPT_DIR}/../traces/radix_moe/agg"}"
 RESULT_FILE="${RESULT_FILE:-"${SCRIPT_DIR}/analyzeMoe/mmlu_results.jsonl"}"
 RAW_RESULT_DIR="${RAW_RESULT_DIR:-""}"  # optional dump of per-prompt outputs
 # Extra args for mmlu_offline (e.g., model flags); space-separated string is fine.
