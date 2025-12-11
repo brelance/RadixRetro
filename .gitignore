@@ -9,3 +9,4 @@ prompt
 .donwload_models
 traces
 *.jsonl
+*.txt

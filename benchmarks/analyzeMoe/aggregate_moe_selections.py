@@ -26,7 +26,13 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=Path("benchmarks/analyzeMoe/aggregated_moe_selections.json"),
-        help="Where to write the aggregated per-layer results.",
+        help="Where to write the aggregated per-layer results (JSON).",
+    )
+    parser.add_argument(
+        "--text-output",
+        type=Path,
+        default=Path("benchmarks/analyzeMoe/aggregated_moe_selections.txt"),
+        help="Where to write a human-readable text table per layer.",
     )
     parser.add_argument(
         "--sort-by",
@@ -136,6 +142,28 @@ def build_layer_payload(
     return layers
 
 
+def render_text_tables(layers: List[Dict[str, object]]) -> str:
+    lines: List[str] = []
+    for layer_entry in layers:
+        experts = layer_entry["experts"]
+        counts = layer_entry["counts"]
+        expert_width = max(len("expert"), max(len(str(e)) for e in experts)) if experts else len("expert")
+        count_width = max(len("count"), max(len(str(c)) for c in counts)) if counts else len("count")
+
+        lines.append(
+            f"Layer {layer_entry['layer']} "
+            f"(requests: {layer_entry['request_count']}, total_count: {layer_entry['total_count']})"
+        )
+        lines.append(f"{'expert'.ljust(expert_width)} | {'count'.ljust(count_width)}")
+        lines.append(f"{'-'*expert_width}-+-{'-'*count_width}")
+
+        for expert, count in zip(experts, counts):
+            lines.append(f"{str(expert).ljust(expert_width)} | {str(count).ljust(count_width)}")
+        lines.append("")  # blank line between layers for readability
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def main() -> None:
     args = parse_args()
     if not args.input.exists():
@@ -155,9 +183,11 @@ def main() -> None:
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    args.text_output.parent.mkdir(parents=True, exist_ok=True)
+    args.text_output.write_text(render_text_tables(layers), encoding="utf-8")
     print(
         f"Aggregated {len(records)} records across {len(layers)} layers. "
-        f"Results saved to {args.output}."
+        f"Results saved to {args.output} and {args.text_output}."
     )
 
 
