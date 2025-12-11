@@ -5,7 +5,7 @@ set -euo pipefail
 # Optionally set MODEL_PATH or DATASET_PATH env vars to override defaults in the Python script.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TRACE_DIR="${TRACE_DIR:-"$ROOT_DIR/traces"}"
+TRACE_DIR="${TRACE_DIR:-"$ROOT_DIR/traces/radix_dump_whit"}"
 mkdir -p "$TRACE_DIR"
 
 MODEL_ARG=()
@@ -25,6 +25,7 @@ if [[ "${DISABLE_RADIX:-0}" != "0" ]]; then
 fi
 
 for n in {10..100..10}; do
+# for n in 10; do
   trace_path="$TRACE_DIR/tree_node_trace_${n}.json"
   img_path="$TRACE_DIR/radix_tree_${n}.png"
 
